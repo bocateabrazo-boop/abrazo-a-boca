@@ -82,6 +82,27 @@
   .saludo { text-align: center; font-weight: 700; font-size: 1.15rem; margin: 0; }
   .aviso { background: rgba(245,197,24,.14); border-left: 4px solid var(--oro); border-radius: 8px; padding: .9rem 1rem; margin-top: 1.25rem; }
   .sello { text-align: center; color: #b9b2a2; font-size: .75rem; margin-top: 2.5rem; }
+
+  /* ===== Panel del equipo ===== */
+  .panel-top { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+  .panel-top h1 { font-size: 1.6rem; margin: 0; }
+  .panel-top .quien { font-size: .8rem; color: #d9d2c0; }
+  .chico { width: auto; margin: 0; padding: .55rem .9rem; font-size: .9rem; }
+  .secundario { background: transparent; color: var(--oro); border: 2px solid var(--oro); }
+  .numeros { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
+  .numero-caja { background: rgba(8,19,58,.92); border: 2px solid var(--oro); border-radius: 14px; padding: .8rem; text-align: center; }
+  .numero-caja b { display: block; font-family: 'Playfair Display', Georgia, serif; font-size: 2.2rem; color: var(--oro); line-height: 1.1; }
+  .numero-caja span { font-size: .85rem; }
+  .acciones { display: flex; gap: .6rem; margin: .9rem 0; flex-wrap: wrap; }
+  .acciones button { flex: 1; margin: 0; padding: .75rem; font-size: .95rem; }
+  .ficha { background: #fffaf0; color: var(--azul-hondo); border-radius: 12px; padding: .8rem .9rem; margin-bottom: .6rem; font-size: .95rem; }
+  .ficha .nom { font-weight: 700; font-size: 1.05rem; }
+  .ficha .det { color: #3d4466; word-break: break-word; }
+  .ficha .cod { font-family: monospace; letter-spacing: .1em; }
+  .etiqueta { display: inline-block; background: var(--azul); color: var(--oro); border-radius: 6px; padding: 0 .45rem; font-size: .8rem; margin-left: .3rem; }
+  select { width: 100%; font: inherit; padding: .75rem .85rem; border-radius: 10px; border: 0; background: #fffaf0; color: var(--azul-hondo); }
+  .nota { font-size: .85rem; color: #d9d2c0; margin: .6rem 0 0; }
+  .ok { background: #dff3e6; color: #1f5b3a; font-weight: 700; padding: .75rem; border-radius: 10px; margin-top: 1rem; }
 </style>
 </head>
 <body>
@@ -89,14 +110,15 @@
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect } = React;
 
 // ====== CONFIGURACIÓN ======
-const VERSION = 'v2026-10-07.2';
+const VERSION = 'v2026-10-07.3';
 const SUPABASE_URL = 'https://wteiwjngcgjorzhgqzju.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_e-EmbLajXgx8EVcWoyVtfA_MsrPVxoL';
 const FECHA = '';   // ej: 'Sábado 15 de noviembre · 17 h' (vacío = no se muestra)
 const LUGAR = '';   // ej: 'Brandsen 805, La Boca'
+const CUPO = 800;
 // ===========================
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -178,7 +200,7 @@ function Cuando() {
   return <p className="cuando">{FECHA}{FECHA && LUGAR ? ' · ' : ''}{LUGAR}</p>;
 }
 
-function App() {
+function Inscripcion() {
   const [f, setF] = useState({ nombre: '', apellido: '', dni: '', email: '', telefono: '' });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
@@ -266,6 +288,234 @@ function App() {
       <p className="sello">{VERSION}</p>
     </main>
   );
+}
+
+// ================= PANEL DEL EQUIPO (?p=equipo) =================
+const sinTildes = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const fechaAR = (d) => d ? new Date(d).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+
+function descargarCSV(lista) {
+  const col = ['Fecha inscripción', 'Nombre', 'Apellido', 'DNI', 'Email', 'Teléfono', 'Código', 'Ingreso', 'N° sorteo'];
+  const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const filas = lista.map((r) => [fechaAR(r.creado_at), r.nombre, r.apellido, r.dni, r.email, r.telefono, r.codigo, fechaAR(r.ingreso_at), r.numero_sorteo || ''].map(esc).join(';'));
+  const csv = '\ufeff' + col.map(esc).join(';') + '\n' + filas.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'inscriptas-abrazo-a-boca-' + new Date().toLocaleDateString('es-AR').replace(/\//g, '-') + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function Login() {
+  const [email, setEmail] = useState('');
+  const [clave, setClave] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState('');
+
+  async function entrar(e) {
+    e.preventDefault();
+    if (enviando) return;
+    setError('');
+    setEnviando(true);
+    const { error: err } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: clave });
+    if (err) setError('Mail o contraseña incorrectos.');
+    setEnviando(false);
+  }
+
+  return (
+    <main>
+      <Cabecera />
+      <div className="raya" />
+      <section className="tarjeta">
+        <h2>Ingreso del equipo</h2>
+        <form onSubmit={entrar} noValidate>
+          <label htmlFor="lmail">Mail</label>
+          <input id="lmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck="false" />
+          <label htmlFor="lclave">Contraseña</label>
+          <input id="lclave" type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="current-password" />
+          <button type="submit" disabled={enviando}>{enviando ? 'Entrando…' : 'Entrar'}</button>
+          {error && <p className="error" role="alert">{error}</p>}
+        </form>
+      </section>
+      <p className="sello">{VERSION}</p>
+    </main>
+  );
+}
+
+function Equipo({ miEmail }) {
+  const [miembros, setMiembros] = useState([]);
+  const [f, setF] = useState({ email: '', nombre: '', rol: 'organizadora' });
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState('');
+  const [ok, setOk] = useState('');
+
+  async function cargar() {
+    const { data, error: err } = await sb.rpc('listar_equipo');
+    if (err) setError(err.message); else setMiembros(data || []);
+  }
+  useEffect(() => { cargar(); }, []);
+
+  async function guardar(e) {
+    e.preventDefault();
+    if (enviando) return;
+    setError(''); setOk('');
+    setEnviando(true);
+    const mail = f.email.trim().toLowerCase();
+    const { error: err } = await sb.rpc('guardar_miembro', { p_email: mail, p_nombre: f.nombre.trim(), p_rol: f.rol });
+    if (err) setError(err.message);
+    else { setOk('Guardado: ' + mail + '. Acordate de crearle el usuario en Supabase.'); setF({ email: '', nombre: '', rol: 'organizadora' }); cargar(); }
+    setEnviando(false);
+  }
+
+  async function quitar(mail) {
+    if (!window.confirm('¿Quitar el acceso de ' + mail + '?')) return;
+    setError(''); setOk('');
+    const { error: err } = await sb.rpc('quitar_miembro', { p_email: mail });
+    if (err) setError(err.message); else cargar();
+  }
+
+  return (
+    <section className="tarjeta" style={{ marginTop: '1.5rem' }}>
+      <h2>Equipo</h2>
+      {miembros.map((m) => (
+        <div className="ficha" key={m.email}>
+          <div className="nom">{m.nombre || m.email}<span className="etiqueta">{m.rol}</span></div>
+          <div className="det">{m.email}</div>
+          {m.email !== miEmail && (
+            <button className="chico secundario" style={{ marginTop: '.5rem', color: 'var(--azul)', borderColor: 'var(--azul)' }} onClick={() => quitar(m.email)}>Quitar acceso</button>
+          )}
+        </div>
+      ))}
+      <form onSubmit={guardar} noValidate>
+        <label htmlFor="email-m">Mail de la compañera</label>
+        <input id="email-m" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} autoCapitalize="none" autoCorrect="off" spellCheck="false" />
+        <label htmlFor="nombre-m">Nombre</label>
+        <input id="nombre-m" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
+        <label htmlFor="rol-m">Qué puede hacer</label>
+        <select id="rol-m" value={f.rol} onChange={(e) => setF({ ...f, rol: e.target.value })}>
+          <option value="organizadora">Organizadora: ve y descarga las inscripciones</option>
+          <option value="acreditadora">Acreditadora: solo acredita en la puerta</option>
+          <option value="admin">Administradora: todo, incluido el equipo</option>
+        </select>
+        <button type="submit" disabled={enviando}>{enviando ? 'Guardando…' : 'Agregar o actualizar'}</button>
+        {error && <p className="error" role="alert">{error}</p>}
+        {ok && <p className="ok">{ok}</p>}
+        <p className="nota">Agregarla acá le da el permiso. Para que pueda entrar, además creale el usuario en Supabase: Authentication &gt; Users &gt; Add user &gt; Create new user, con el mismo mail, una contraseña y "Auto Confirm User" tildado.</p>
+      </form>
+    </section>
+  );
+}
+
+function Tablero({ email }) {
+  const [rol, setRol] = useState(undefined);
+  const [lista, setLista] = useState(null);
+  const [busca, setBusca] = useState('');
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState('');
+
+  async function cargar() {
+    setCargando(true); setError('');
+    const { data, error: err } = await sb.rpc('listar_inscriptas');
+    if (err) setError(err.message); else setLista(data || []);
+    setCargando(false);
+  }
+
+  useEffect(() => {
+    (async () => {
+      const { data, error: err } = await sb.rpc('mi_rol');
+      const r = err ? null : data;
+      setRol(r);
+      if (r === 'admin' || r === 'organizadora') cargar();
+    })();
+  }, []);
+
+  const salir = () => sb.auth.signOut();
+
+  const arriba = (
+    <div className="panel-top">
+      <div>
+        <h1 style={{ color: 'var(--oro)' }}>Panel del equipo</h1>
+        <div className="quien">{email}{rol ? ' · ' + rol : ''}</div>
+      </div>
+      <button className="chico secundario" onClick={salir}>Salir</button>
+    </div>
+  );
+
+  if (rol === undefined) return <main>{arriba}<p>Cargando…</p></main>;
+
+  if (!rol) return (
+    <main>{arriba}
+      <section className="tarjeta"><p style={{ margin: 0 }}>Este mail no está habilitado en el equipo. Pedile acceso a la administradora.</p></section>
+      <p className="sello">{VERSION}</p>
+    </main>
+  );
+
+  if (rol === 'acreditadora') return (
+    <main>{arriba}
+      <section className="tarjeta"><p style={{ margin: 0 }}>Tu acceso es para la acreditación en la puerta. Esa pantalla se habilita en el próximo paso.</p></section>
+      <p className="sello">{VERSION}</p>
+    </main>
+  );
+
+  const total = lista ? lista.length : 0;
+  const ingresaron = lista ? lista.filter((r) => r.numero_sorteo).length : 0;
+  const q = sinTildes(busca.trim());
+  const filtrada = !lista ? [] : !q ? lista : lista.filter((r) =>
+    sinTildes(r.nombre + ' ' + r.apellido + ' ' + r.dni + ' ' + r.email + ' ' + r.telefono + ' ' + r.codigo).indexOf(q) >= 0);
+  const visibles = filtrada.slice(0, 200);
+
+  return (
+    <main>
+      {arriba}
+      <div className="numeros">
+        <div className="numero-caja"><b>{total}</b><span>inscriptas de {CUPO}</span></div>
+        <div className="numero-caja"><b>{ingresaron}</b><span>ingresaron</span></div>
+      </div>
+
+      <section className="tarjeta">
+        <h2>Inscripciones</h2>
+        <div className="acciones">
+          <button className="secundario" onClick={cargar} disabled={cargando}>{cargando ? 'Actualizando…' : 'Actualizar'}</button>
+          <button onClick={() => lista && descargarCSV(lista)} disabled={!lista || !lista.length}>Descargar Excel</button>
+        </div>
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nombre, DNI, mail…" aria-label="Buscar" />
+        {error && <p className="error" role="alert">{error}</p>}
+        <div style={{ marginTop: '1rem' }}>
+          {lista && !filtrada.length && <p>No hay resultados.</p>}
+          {visibles.map((r) => (
+            <div className="ficha" key={r.id}>
+              <div className="nom">{r.nombre} {r.apellido}{r.numero_sorteo ? <span className="etiqueta">N° {r.numero_sorteo}</span> : null}</div>
+              <div className="det">DNI {r.dni} · {r.email}{r.telefono ? ' · ' + r.telefono : ''}</div>
+              <div className="det">Inscripta {fechaAR(r.creado_at)} · <span className="cod">{r.codigo}</span></div>
+            </div>
+          ))}
+          {filtrada.length > 200 && <p className="nota">Se muestran 200 de {filtrada.length}. Usá el buscador o descargá el Excel.</p>}
+        </div>
+      </section>
+
+      {rol === 'admin' && <Equipo miEmail={email} />}
+      <p className="sello">{VERSION}</p>
+    </main>
+  );
+}
+
+function Panel() {
+  const [sesion, setSesion] = useState(undefined);
+  useEffect(() => {
+    sb.auth.getSession().then(({ data }) => setSesion(data.session));
+    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSesion(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  if (sesion === undefined) return <main><p>Cargando…</p></main>;
+  if (!sesion) return <Login />;
+  return <Tablero email={String(sesion.user.email || '').toLowerCase()} />;
+}
+
+function App() {
+  const p = new URLSearchParams(window.location.search).get('p');
+  if (p === 'equipo') return <Panel />;
+  return <Inscripcion />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
