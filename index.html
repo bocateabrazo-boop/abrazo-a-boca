@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08133a">
+<title>Abrazo a Boca · Inscripción</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Josefin+Sans:wght@600&family=Playfair+Display:ital,wght@0,900;1,600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --azul: #0d1b4c; --azul-hondo: #08133a; --oro: #f5c518; --oro-suave: #e9c46a;
+    --crema: #f6ecd6; --error-fondo: #fde2e2; --error: #9b1c1c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--azul-hondo); color: var(--crema);
+    font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-size: 18px; line-height: 1.5;
+  }
+  .fondo {
+    position: fixed; inset: 0; z-index: -1;
+    background:
+      linear-gradient(to bottom, rgba(8,19,58,.55) 0%, rgba(8,19,58,.15) 38%, rgba(8,19,58,.70) 68%, rgba(8,19,58,.96) 100%),
+      url('fondo.jpg') center top / cover no-repeat;
+  }
+  main { max-width: 32rem; margin: 0 auto; padding: 1.75rem 1.1rem 3rem; }
+
+  .cabecera { text-align: center; text-shadow: 0 2px 12px rgba(0,0,0,.55); }
+  .escudo { width: 64px; height: auto; display: block; margin: 0 auto .9rem; filter: drop-shadow(0 3px 8px rgba(0,0,0,.5)); }
+  .volanta {
+    display: flex; align-items: center; gap: .8rem; justify-content: center;
+    font-family: 'Josefin Sans', sans-serif; font-weight: 600; letter-spacing: .28em;
+    color: var(--oro-suave); font-size: .85rem; text-transform: uppercase;
+  }
+  .volanta::before, .volanta::after { content: ''; height: 2px; width: 2.2rem; background: var(--oro-suave); }
+  h1 {
+    font-family: 'Playfair Display', Georgia, serif; font-weight: 900; text-transform: uppercase;
+    line-height: .95; margin: .6rem 0 .5rem; letter-spacing: -.01em;
+  }
+  h1 .a { display: block; color: var(--crema); font-size: clamp(2.6rem, 12vw, 3.6rem); }
+  h1 .boca { display: block; color: var(--oro); font-size: clamp(4rem, 21vw, 6.2rem); }
+  .lema { font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-weight: 600; font-size: 1.3rem; margin: 0; }
+  .espacio { height: 30vh; }
+  .convoca {
+    font-family: 'Playfair Display', Georgia, serif; font-size: 1.25rem; text-align: center;
+    margin: 0 0 .4rem; text-shadow: 0 2px 10px rgba(0,0,0,.7);
+  }
+  .cuando { text-align: center; color: var(--oro-suave); margin: 0 0 1.25rem; font-weight: 700; }
+  .raya { width: 6rem; height: 2px; background: var(--oro-suave); margin: .9rem auto 1.4rem; }
+
+  .tarjeta {
+    background: rgba(8,19,58,.88); border: 2px solid var(--oro); border-radius: 16px;
+    padding: 1.4rem 1.2rem 1.5rem; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  .tarjeta h2 {
+    font-family: 'Josefin Sans', sans-serif; font-weight: 600; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--oro); font-size: 1rem; text-align: center; margin: 0 0 .4rem;
+  }
+  label { display: block; font-weight: 700; margin: 1rem 0 .3rem; color: var(--crema); }
+  input {
+    width: 100%; font: inherit; padding: .75rem .85rem; border: 2px solid transparent;
+    border-radius: 10px; background: #fffaf0; color: var(--azul-hondo);
+  }
+  input:focus { outline: 3px solid var(--oro); outline-offset: 1px; }
+  .ayuda { font-size: .85rem; color: #d9d2c0; margin: .3rem 0 0; }
+  button, .boton {
+    display: block; width: 100%; margin-top: 1.5rem; padding: 1rem; font: inherit; font-weight: 700;
+    font-size: 1.1rem; letter-spacing: .04em; color: var(--azul-hondo); background: var(--oro);
+    border: 0; border-radius: 12px; cursor: pointer; text-align: center; text-decoration: none;
+  }
+  button:disabled { opacity: .6; cursor: wait; }
+  button:focus-visible, .boton:focus-visible { outline: 3px solid var(--crema); outline-offset: 3px; }
+  .error { background: var(--error-fondo); color: var(--error); font-weight: 700; padding: .75rem; border-radius: 10px; margin-top: 1rem; }
+  .entrada img { width: 100%; max-width: 340px; height: auto; display: block; margin: .75rem auto 0; border-radius: 12px; }
+  .saludo { text-align: center; font-weight: 700; font-size: 1.15rem; margin: 0; }
+  .aviso { background: rgba(245,197,24,.14); border-left: 4px solid var(--oro); border-radius: 8px; padding: .9rem 1rem; margin-top: 1.25rem; }
+  .sello { text-align: center; color: #b9b2a2; font-size: .75rem; margin-top: 2.5rem; }
+</style>
+</head>
+<body>
+<div class="fondo" aria-hidden="true"></div>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState } = React;
+
+// ====== CONFIGURACIÓN ======
+const VERSION = 'v2026-10-07.2';
+const SUPABASE_URL = 'https://wteiwjngcgjorzhgqzju.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_e-EmbLajXgx8EVcWoyVtfA_MsrPVxoL';
+const FECHA = '';   // ej: 'Sábado 15 de noviembre · 17 h' (vacío = no se muestra)
+const LUGAR = '';   // ej: 'Brandsen 805, La Boca'
+// ===========================
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const URL_BASE = window.location.origin + window.location.pathname;
+
+function cargarImagen(src) {
+  return new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+}
+
+// Arma la entrada (imagen PNG) con la estética del flyer
+async function armarEntrada(codigo, nombre) {
+  await Promise.all([
+    document.fonts.load('900 60px "Playfair Display"'),
+    document.fonts.load('italic 600 30px "Playfair Display"'),
+    document.fonts.load('600 22px "Josefin Sans"'),
+    document.fonts.load('700 30px "Atkinson Hyperlegible"')
+  ]).catch(() => {});
+  const escudo = await cargarImagen('escudo.png');
+
+  const tmp = document.createElement('div');
+  new QRCode(tmp, { text: URL_BASE + '?id=' + codigo, width: 420, height: 420, correctLevel: QRCode.CorrectLevel.M });
+  await new Promise((r) => setTimeout(r, 60));
+  const qr = tmp.querySelector('canvas');
+
+  const W = 640, H = 1040;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+
+  const g = x.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0d1b4c'); g.addColorStop(1, '#08133a');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.strokeStyle = '#f5c518'; x.lineWidth = 6; x.strokeRect(18, 18, W - 36, H - 36);
+
+  x.textAlign = 'center';
+  let y = 48;
+  if (escudo) { const h = 90, w = h * escudo.width / escudo.height; x.drawImage(escudo, (W - w) / 2, y, w, h); y += 90 + 46; }
+  else { y += 40; }
+
+  x.fillStyle = '#e9c46a'; x.font = '600 22px "Josefin Sans", sans-serif';
+  x.fillText('M U J E R E S   P O R   B O C A', W / 2, y);
+  y += 66;
+  x.font = '900 56px "Playfair Display", Georgia, serif';
+  x.fillStyle = '#f6ecd6'; x.fillText('ABRAZO A', W / 2, y);
+  y += 82;
+  x.font = '900 86px "Playfair Display", Georgia, serif';
+  x.fillStyle = '#f5c518'; x.fillText('BOCA', W / 2, y);
+  y += 50;
+  x.font = '700 30px "Atkinson Hyperlegible", sans-serif';
+  x.fillStyle = '#f6ecd6'; x.fillText(nombre, W / 2, y, W - 100);
+
+  y += 28;
+  const caja = 460, qx = (W - caja) / 2;
+  x.fillStyle = '#ffffff'; x.fillRect(qx, y, caja, caja);
+  x.drawImage(qr, qx + 20, y + 20, caja - 40, caja - 40);
+  y += caja + 62;
+
+  x.fillStyle = '#f5c518'; x.font = '700 50px "Atkinson Hyperlegible", sans-serif';
+  x.fillText(codigo.split('').join(' '), W / 2, y);
+  y += 46;
+  x.fillStyle = '#f6ecd6'; x.font = 'italic 600 26px "Playfair Display", Georgia, serif';
+  x.fillText('Mostrala en la entrada', W / 2, Math.min(y, H - 40));
+
+  return c.toDataURL('image/png');
+}
+
+function Cabecera() {
+  return (
+    <header className="cabecera">
+      <img className="escudo" src="escudo.png" alt="" />
+      <div className="volanta">Mujeres por Boca</div>
+      <h1><span className="a">Abrazo a</span><span className="boca">Boca</span></h1>
+      <p className="lema">Nos une Boca. Nos mueve el futuro.</p>
+    </header>
+  );
+}
+
+function Cuando() {
+  if (!FECHA && !LUGAR) return null;
+  return <p className="cuando">{FECHA}{FECHA && LUGAR ? ' · ' : ''}{LUGAR}</p>;
+}
+
+function App() {
+  const [f, setF] = useState({ nombre: '', apellido: '', dni: '', email: '', telefono: '' });
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState('');
+  const [listo, setListo] = useState(null);
+
+  const cambiar = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  async function enviar(e) {
+    e.preventDefault();
+    if (enviando) return;
+    setError('');
+    setEnviando(true);
+    const { data, error: err } = await sb.rpc('registrar', {
+      p_nombre: f.nombre.trim(),
+      p_apellido: f.apellido.trim(),
+      p_dni: f.dni.replace(/\D/g, ''),
+      p_email: f.email.trim().toLowerCase(),
+      p_telefono: f.telefono.trim()
+    });
+    if (err) {
+      setError(err.message || 'No se pudo enviar. Probá de nuevo.');
+      setEnviando(false);
+      return;
+    }
+    const imagen = await armarEntrada(data.codigo, data.nombre);
+    setListo({ ...data, imagen });
+    setEnviando(false);
+    window.scrollTo(0, 0);
+  }
+
+  if (listo) {
+    return (
+      <main>
+        <Cabecera />
+        <div className="raya" />
+        <section className="tarjeta entrada">
+          <p className="saludo">
+            {listo.ya_inscripta
+              ? listo.nombre + ', ya estabas inscripta. Esta es tu entrada:'
+              : '¡Listo, ' + listo.nombre + '! Esta es tu entrada:'}
+          </p>
+          <img src={listo.imagen} alt={'Entrada con código QR ' + listo.codigo} />
+          <a className="boton" href={listo.imagen} download={'entrada-abrazo-a-boca-' + listo.codigo + '.png'}>Guardar la entrada</a>
+          <div className="aviso">
+            <b>Guardala o sacale captura ahora.</b> Es tu entrada: la escaneamos al llegar
+            y ahí te damos tu número para el sorteo. También te va a llegar por mail.
+          </div>
+        </section>
+        <p className="sello">{VERSION}</p>
+      </main>
+    );
+  }
+
+  return (
+    <main>
+      <Cabecera />
+      <div className="espacio" />
+      <p className="convoca">Convocamos a socias e hinchas<br />a abrazar nuestra casa.</p>
+      <div className="raya" />
+      <Cuando />
+      <section className="tarjeta">
+        <h2>Inscripción</h2>
+        <form onSubmit={enviar} noValidate>
+          <label htmlFor="nombre">Nombre</label>
+          <input id="nombre" value={f.nombre} onChange={cambiar('nombre')} autoComplete="given-name" />
+
+          <label htmlFor="apellido">Apellido</label>
+          <input id="apellido" value={f.apellido} onChange={cambiar('apellido')} autoComplete="family-name" />
+
+          <label htmlFor="dni">DNI</label>
+          <input id="dni" value={f.dni} onChange={cambiar('dni')} inputMode="numeric" />
+          <p className="ayuda">Solo números. Sirve para buscarte en la entrada si no encontrás el QR.</p>
+
+          <label htmlFor="email">Mail</label>
+          <input id="email" type="email" value={f.email} onChange={cambiar('email')}
+            autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck="false" />
+
+          <label htmlFor="telefono">Teléfono</label>
+          <input id="telefono" type="tel" value={f.telefono} onChange={cambiar('telefono')} autoComplete="tel" />
+
+          <button type="submit" disabled={enviando}>{enviando ? 'Inscribiendo…' : 'Quiero abrazar a Boca'}</button>
+          {error && <p className="error" role="alert">{error}</p>}
+        </form>
+      </section>
+      <p className="sello">{VERSION}</p>
+    </main>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
