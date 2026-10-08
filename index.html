@@ -113,7 +113,7 @@
 const { useState, useEffect } = React;
 
 // ====== CONFIGURACIÓN ======
-const VERSION = 'v2026-10-07.3';
+const VERSION = 'v2026-10-08.1';
 const SUPABASE_URL = 'https://wteiwjngcgjorzhgqzju.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_e-EmbLajXgx8EVcWoyVtfA_MsrPVxoL';
 const FECHA = '';   // ej: 'Sábado 15 de noviembre · 17 h' (vacío = no se muestra)
@@ -343,12 +343,40 @@ function Login() {
   );
 }
 
+function claveAlAzar() {
+  const pal = ['azul', 'oro', 'abrazo', 'bombonera', 'tribuna', 'barrio', 'boca', 'xeneize', 'garra', 'estrella'];
+  const r = (n) => Math.floor(Math.random() * n);
+  return pal[r(pal.length)] + '-' + pal[r(pal.length)] + '-' + (10 + r(90));
+}
+
+async function llamarEquipo(cuerpo) {
+  const { data, error } = await sb.functions.invoke('equipo', { body: cuerpo });
+  if (error) {
+    const st = error.context && error.context.status;
+    let msg = st === 404 ? 'No existe la función "equipo" en Supabase (código 404).'
+      : st === 401 ? 'Supabase rechazó la sesión (código 401). Revisá "Verify JWT" en la función.'
+      : st ? 'Error del servidor (código ' + st + ').'
+      : 'No se pudo conectar con la función "equipo" (' + (error.message || 'sin respuesta') + ').';
+    try { const j = await error.context.json(); if (j && (j.error || j.message || j.msg)) msg = (j.error || j.message || j.msg) + (st ? ' (código ' + st + ')' : ''); } catch (e) {}
+    throw new Error(msg);
+  }
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+
+function mensajeWhatsApp(nombre, mail, clave) {
+  return 'Hola' + (nombre ? ' ' + nombre : '') + '! Ya tenés acceso al panel de Abrazo a Boca.\n' +
+    'Entrá acá: ' + window.location.origin + '/?p=equipo\n' +
+    'Mail: ' + mail + '\nClave: ' + clave + '\n' +
+    'No compartas la clave. Si la perdés, avisame y te la cambio.';
+}
+
 function Equipo({ miEmail }) {
   const [miembros, setMiembros] = useState([]);
-  const [f, setF] = useState({ email: '', nombre: '', rol: 'organizadora' });
+  const [f, setF] = useState({ email: '', nombre: '', rol: 'organizadora', clave: claveAlAzar() });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
-  const [ok, setOk] = useState('');
+  const [aviso, setAviso] = useState(null);
 
   async function cargar() {
     const { data, error: err } = await sb.rpc('listar_equipo');
@@ -359,21 +387,44 @@ function Equipo({ miEmail }) {
   async function guardar(e) {
     e.preventDefault();
     if (enviando) return;
-    setError(''); setOk('');
-    setEnviando(true);
+    setError(''); setAviso(null);
     const mail = f.email.trim().toLowerCase();
-    const { error: err } = await sb.rpc('guardar_miembro', { p_email: mail, p_nombre: f.nombre.trim(), p_rol: f.rol });
-    if (err) setError(err.message);
-    else { setOk('Guardado: ' + mail + '. Acordate de crearle el usuario en Supabase.'); setF({ email: '', nombre: '', rol: 'organizadora' }); cargar(); }
+    const clave = f.clave.trim();
+    if (clave.length < 8) { setError('La clave tiene que tener al menos 8 caracteres.'); return; }
+    setEnviando(true);
+    try {
+      await llamarEquipo({ accion: 'agregar', email: mail, nombre: f.nombre.trim(), rol: f.rol, clave });
+      setAviso({ titulo: 'Listo: ' + mail + ' ya puede entrar.', texto: mensajeWhatsApp(f.nombre.trim(), mail, clave) });
+      setF({ email: '', nombre: '', rol: 'organizadora', clave: claveAlAzar() });
+      cargar();
+    } catch (err) { setError(err.message); }
     setEnviando(false);
   }
 
-  async function quitar(mail) {
-    if (!window.confirm('¿Quitar el acceso de ' + mail + '?')) return;
-    setError(''); setOk('');
-    const { error: err } = await sb.rpc('quitar_miembro', { p_email: mail });
-    if (err) setError(err.message); else cargar();
+  async function nuevaClave(m) {
+    const clave = claveAlAzar();
+    if (!window.confirm('¿Cambiar la clave de ' + m.email + '? La nueva va a ser: ' + clave)) return;
+    setError(''); setAviso(null);
+    try {
+      await llamarEquipo({ accion: 'clave', email: m.email, clave });
+      setAviso({ titulo: 'Clave nueva para ' + m.email, texto: mensajeWhatsApp(m.nombre, m.email, clave) });
+      window.scrollTo(0, document.body.scrollHeight);
+    } catch (err) { setError(err.message); }
   }
+
+  async function quitar(mail) {
+    if (!window.confirm('¿Quitar el acceso de ' + mail + '? Se borra su usuaria.')) return;
+    setError(''); setAviso(null);
+    try { await llamarEquipo({ accion: 'quitar', email: mail }); cargar(); }
+    catch (err) { setError(err.message); }
+  }
+
+  async function copiar(t) {
+    try { await navigator.clipboard.writeText(t); alert('Copiado. Pegalo en WhatsApp.'); }
+    catch (e) { alert('No se pudo copiar. Seleccioná el texto y copialo a mano.'); }
+  }
+
+  const botonFicha = { marginTop: '.5rem', marginRight: '.5rem', display: 'inline-block', color: 'var(--azul)', borderColor: 'var(--azul)' };
 
   return (
     <section className="tarjeta" style={{ marginTop: '1.5rem' }}>
@@ -383,12 +434,17 @@ function Equipo({ miEmail }) {
           <div className="nom">{m.nombre || m.email}<span className="etiqueta">{m.rol}</span></div>
           <div className="det">{m.email}</div>
           {m.email !== miEmail && (
-            <button className="chico secundario" style={{ marginTop: '.5rem', color: 'var(--azul)', borderColor: 'var(--azul)' }} onClick={() => quitar(m.email)}>Quitar acceso</button>
+            <div>
+              <button className="chico secundario" style={botonFicha} onClick={() => nuevaClave(m)}>Cambiar clave</button>
+              <button className="chico secundario" style={botonFicha} onClick={() => quitar(m.email)}>Quitar acceso</button>
+            </div>
           )}
         </div>
       ))}
+
+      <h2 style={{ marginTop: '1.5rem' }}>Sumar compañera</h2>
       <form onSubmit={guardar} noValidate>
-        <label htmlFor="email-m">Mail de la compañera</label>
+        <label htmlFor="email-m">Mail</label>
         <input id="email-m" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} autoCapitalize="none" autoCorrect="off" spellCheck="false" />
         <label htmlFor="nombre-m">Nombre</label>
         <input id="nombre-m" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
@@ -398,11 +454,20 @@ function Equipo({ miEmail }) {
           <option value="acreditadora">Acreditadora: solo acredita en la puerta</option>
           <option value="admin">Administradora: todo, incluido el equipo</option>
         </select>
-        <button type="submit" disabled={enviando}>{enviando ? 'Guardando…' : 'Agregar o actualizar'}</button>
+        <label htmlFor="clave-m">Clave</label>
+        <input id="clave-m" value={f.clave} onChange={(e) => setF({ ...f, clave: e.target.value })} autoCapitalize="none" autoCorrect="off" spellCheck="false" />
+        <p className="ayuda">Viene una sugerida. Podés cambiarla; mínimo 8 caracteres.</p>
+        <button type="submit" disabled={enviando}>{enviando ? 'Creando…' : 'Crear acceso'}</button>
         {error && <p className="error" role="alert">{error}</p>}
-        {ok && <p className="ok">{ok}</p>}
-        <p className="nota">Agregarla acá le da el permiso. Para que pueda entrar, además creale el usuario en Supabase: Authentication &gt; Users &gt; Add user &gt; Create new user, con el mismo mail, una contraseña y "Auto Confirm User" tildado.</p>
       </form>
+
+      {aviso && (
+        <div className="ok" style={{ fontWeight: 400 }}>
+          <b>{aviso.titulo}</b>
+          <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: '.6rem 0' }}>{aviso.texto}</pre>
+          <button className="chico" style={{ marginTop: 0 }} onClick={() => copiar(aviso.texto)}>Copiar mensaje</button>
+        </div>
+      )}
     </section>
   );
 }
