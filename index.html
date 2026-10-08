@@ -103,6 +103,10 @@
   select { width: 100%; font: inherit; padding: .75rem .85rem; border-radius: 10px; border: 0; background: #fffaf0; color: var(--azul-hondo); }
   .nota { font-size: .85rem; color: #d9d2c0; margin: .6rem 0 0; }
   .ok { background: #dff3e6; color: #1f5b3a; font-weight: 700; padding: .75rem; border-radius: 10px; margin-top: 1rem; }
+  .con-ojo { position: relative; }
+  .con-ojo input { padding-right: 5.5rem; }
+  .ojo { position: absolute; right: .35rem; top: 50%; transform: translateY(-50%); width: auto; margin: 0;
+    padding: .45rem .8rem; font-size: .9rem; background: var(--azul); color: var(--oro); border-radius: 8px; }
 </style>
 </head>
 <body>
@@ -113,7 +117,7 @@
 const { useState, useEffect } = React;
 
 // ====== CONFIGURACIÓN ======
-const VERSION = 'v2026-10-08.1';
+const VERSION = 'v2026-10-08.2';
 const SUPABASE_URL = 'https://wteiwjngcgjorzhgqzju.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_e-EmbLajXgx8EVcWoyVtfA_MsrPVxoL';
 const FECHA = '';   // ej: 'Sábado 15 de noviembre · 17 h' (vacío = no se muestra)
@@ -311,6 +315,7 @@ function Login() {
   const [clave, setClave] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
+  const [ver, setVer] = useState(false);
 
   async function entrar(e) {
     e.preventDefault();
@@ -333,7 +338,11 @@ function Login() {
           <input id="lmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
             autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck="false" />
           <label htmlFor="lclave">Contraseña</label>
-          <input id="lclave" type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="current-password" />
+          <div className="con-ojo">
+            <input id="lclave" type={ver ? 'text' : 'password'} value={clave} onChange={(e) => setClave(e.target.value)}
+              autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck="false" />
+            <button type="button" className="ojo" onClick={() => setVer(!ver)} aria-pressed={ver}>{ver ? 'Ocultar' : 'Ver'}</button>
+          </div>
           <button type="submit" disabled={enviando}>{enviando ? 'Entrando…' : 'Entrar'}</button>
           {error && <p className="error" role="alert">{error}</p>}
         </form>
