@@ -13,6 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
   :root {
     --azul: #0d1b4c; --azul-hondo: #08133a; --oro: #f5c518; --oro-suave: #e9c46a;
@@ -107,6 +108,43 @@
   .con-ojo input { padding-right: 5.5rem; }
   .ojo { position: absolute; right: .35rem; top: 50%; transform: translateY(-50%); width: auto; margin: 0;
     padding: .45rem .8rem; font-size: .9rem; background: var(--azul); color: var(--oro); border-radius: 8px; }
+
+  /* ===== Puerta ===== */
+  .pestanas { display: flex; gap: .5rem; margin-bottom: 1rem; }
+  .pestanas button { margin: 0; flex: 1; padding: .7rem; font-size: 1rem; }
+  .pestanas .apagada { background: transparent; color: var(--oro); border: 2px solid var(--oro); }
+  .camara { position: relative; background: #000; border: 3px solid var(--oro); border-radius: 16px; overflow: hidden; aspect-ratio: 1 / 1; }
+  .camara video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .camara .mira { position: absolute; inset: 18%; border: 3px dashed rgba(245,197,24,.85); border-radius: 14px; pointer-events: none; }
+  .camara .estado { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(8,19,58,.82); color: var(--crema); text-align: center; padding: .5rem; font-size: .95rem; }
+  .resultado { border-radius: 16px; padding: 1.2rem 1rem; text-align: center; margin: 1rem 0; border: 3px solid; }
+  .resultado .titulo { font-weight: 700; font-size: 1.15rem; margin: 0; }
+  .resultado .persona { font-weight: 700; font-size: 1.5rem; margin: .4rem 0 0; line-height: 1.2; }
+  .resultado .num { font-family: 'Playfair Display', Georgia, serif; font-weight: 900; font-size: 5.5rem; line-height: 1; margin: .3rem 0; }
+  .resultado .chica { margin: .2rem 0 0; }
+  .r-ok  { background: #dff3e6; color: #14532d; border-color: #1f7a4a; }
+  .r-rep { background: #fdf0cf; color: #6b4a00; border-color: #b7860b; }
+  .r-mal { background: #fde2e2; color: #7f1d1d; border-color: #b42318; }
+  .resultado button { background: var(--azul); color: var(--oro); margin-top: 1rem; }
+  .ficha .dar { width: auto; margin: .5rem 0 0; padding: .55rem .9rem; font-size: .95rem; }
+
+  /* ===== Sorteo ===== */
+  .sorteo { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 2rem 1rem 1.25rem; text-align: center; }
+  .sorteo .cab { text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+  .sorteo .cab h1 { margin: .4rem 0 0; line-height: .95; }
+  .sorteo .cab .a { font-size: clamp(1.6rem, 4vw, 2.6rem); color: var(--crema); display: block; }
+  .sorteo .cab .boca { font-size: clamp(2.6rem, 7vw, 4.6rem); color: var(--oro); display: block; }
+  .sorteo .centro { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .sorteo .rotulo { font-family: 'Josefin Sans', sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--oro-suave); font-size: clamp(1rem, 2.4vw, 1.6rem); }
+  .sorteo .bola { font-family: 'Playfair Display', Georgia, serif; font-weight: 900; line-height: 1; color: var(--oro);
+    font-size: clamp(8rem, 30vw, 24rem); text-shadow: 0 6px 30px rgba(0,0,0,.7); font-variant-numeric: tabular-nums; }
+  .sorteo .bola.gira { color: var(--crema); opacity: .85; }
+  .sorteo .ganadora { font-size: clamp(1.6rem, 4.5vw, 3.2rem); font-weight: 700; color: var(--crema); text-shadow: 0 2px 14px rgba(0,0,0,.8); margin: .3rem 0 0; }
+  .sorteo .controles { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; align-items: center; }
+  .sorteo .controles button { width: auto; margin: 0; padding: .8rem 1.4rem; }
+  .sorteo .grande { font-size: 1.3rem; padding: 1rem 2.6rem !important; }
+  .sorteo .historial { margin-top: .9rem; font-size: .95rem; color: #d9d2c0; }
+  .sorteo .historial s { opacity: .7; }
 </style>
 </head>
 <body>
@@ -117,7 +155,7 @@
 const { useState, useEffect } = React;
 
 // ====== CONFIGURACIÓN ======
-const VERSION = 'v2026-10-08.2';
+const VERSION = 'v2026-10-08.3';
 const SUPABASE_URL = 'https://wteiwjngcgjorzhgqzju.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_e-EmbLajXgx8EVcWoyVtfA_MsrPVxoL';
 const FECHA = '';   // ej: 'Sábado 15 de noviembre · 17 h' (vacío = no se muestra)
@@ -481,8 +519,354 @@ function Equipo({ miEmail }) {
   );
 }
 
-function Tablero({ email }) {
+// ================= PUERTA (acreditación) =================
+function extraerCodigo(t) {
+  let s = String(t || '').trim();
+  try { const u = new URL(s); const id = u.searchParams.get('id'); if (id) s = id; } catch (e) {}
+  return s.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+}
+
+function horaAR(d) {
+  return d ? new Date(d).toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit' }) : '';
+}
+
+function Escaner({ activo, onCodigo }) {
+  const videoRef = React.useRef(null);
+  const activoRef = React.useRef(activo);
+  const cbRef = React.useRef(onCodigo);
+  activoRef.current = activo;
+  cbRef.current = onCodigo;
+  const [error, setError] = useState('');
+  const [lista, setLista] = useState(false);
+
+  useEffect(() => {
+    let stream = null, parar = false, timer = null, detector = null;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    (async () => {
+      try {
+        if ('BarcodeDetector' in window) {
+          const f = await window.BarcodeDetector.getSupportedFormats();
+          if (f.includes('qr_code')) detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        }
+      } catch (e) {}
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+      } catch (e) {
+        setError('No se pudo abrir la cámara. Dale permiso al navegador para usarla, o buscala por DNI más abajo.');
+        return;
+      }
+      if (parar) { stream.getTracks().forEach((t) => t.stop()); return; }
+      const v = videoRef.current;
+      v.srcObject = stream;
+      await v.play().catch(() => {});
+      setLista(true);
+      const mirar = async () => {
+        if (parar) return;
+        if (activoRef.current && v.readyState >= 2 && v.videoWidth) {
+          let texto = null;
+          try {
+            if (detector) {
+              const r = await detector.detect(v);
+              if (r && r.length) texto = r[0].rawValue;
+            } else if (window.jsQR) {
+              const w = v.videoWidth, h = v.videoHeight;
+              const k = Math.min(1, 720 / Math.max(w, h));
+              canvas.width = Math.round(w * k); canvas.height = Math.round(h * k);
+              ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+              const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const r = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+              if (r) texto = r.data;
+            }
+          } catch (e) {}
+          if (texto && activoRef.current) { activoRef.current = false; cbRef.current(texto); }
+        }
+        timer = setTimeout(mirar, 180);
+      };
+      mirar();
+    })();
+    return () => { parar = true; clearTimeout(timer); if (stream) stream.getTracks().forEach((t) => t.stop()); };
+  }, []);
+
+  if (error) return <p className="error" role="alert">{error}</p>;
+  return (
+    <div className="camara">
+      <video ref={videoRef} playsInline muted autoPlay />
+      <div className="mira" aria-hidden="true" />
+      <div className="estado">{!lista ? 'Abriendo cámara…' : activo ? 'Apuntá al QR' : 'En pausa'}</div>
+    </div>
+  );
+}
+
+function Resultado({ res, onSiguiente }) {
+  let clase = 'r-mal', cuerpo = null;
+  if (res.estado === 'ok') {
+    clase = 'r-ok';
+    cuerpo = (<>
+      <p className="titulo">Bienvenida</p>
+      <p className="persona">{res.nombre} {res.apellido}</p>
+      <p className="chica">Número para el sorteo</p>
+      <p className="num">{res.numero}</p>
+    </>);
+  } else if (res.estado === 'repetida') {
+    clase = 'r-rep';
+    cuerpo = (<>
+      <p className="titulo">Ya había ingresado a las {horaAR(res.ingreso_at)}</p>
+      <p className="persona">{res.nombre} {res.apellido}</p>
+      <p className="chica">Es el mismo número</p>
+      <p className="num">{res.numero}</p>
+    </>);
+  } else if (res.estado === 'no_encontrada') {
+    cuerpo = (<>
+      <p className="titulo">Código no encontrado</p>
+      <p className="chica">{res.codigo ? 'Leído: ' + res.codigo + '. ' : ''}Buscala por DNI o apellido acá abajo.</p>
+    </>);
+  } else {
+    cuerpo = (<>
+      <p className="titulo">No se pudo acreditar</p>
+      <p className="chica">{res.mensaje || 'Revisá la conexión y probá de nuevo.'}</p>
+    </>);
+  }
+  return (
+    <div className={'resultado ' + clase} role="status" aria-live="assertive">
+      {cuerpo}
+      <button onClick={onSiguiente}>Escanear la siguiente</button>
+    </div>
+  );
+}
+
+function Puerta({ codigoInicial }) {
+  const [res, setRes] = useState(null);
+  const [procesando, setProcesando] = useState(false);
+  const [presentes, setPresentes] = useState(null);
+  const [camara, setCamara] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [lista, setLista] = useState(null);
+  const [buscando, setBuscando] = useState(false);
+
+  async function contar() {
+    const { data } = await sb.rpc('contar_presentes');
+    if (typeof data === 'number') setPresentes(data);
+  }
+
+  async function acreditar(texto) {
+    const codigo = extraerCodigo(texto);
+    if (!codigo || procesando) return;
+    setProcesando(true);
+    const { data, error } = await sb.rpc('acreditar', { p_codigo: codigo });
+    setProcesando(false);
+    if (error) { setRes({ estado: 'falla', mensaje: error.message }); return; }
+    setRes(data);
+    if (data && data.presentes != null) setPresentes(data.presentes);
+    try { if (navigator.vibrate) navigator.vibrate(data.estado === 'ok' ? 150 : [90, 70, 90]); } catch (e) {}
+    setLista(null); setBusca('');
+    window.scrollTo(0, 0);
+  }
+
+  async function buscar(e) {
+    if (e) e.preventDefault();
+    const q = busca.trim();
+    if (q.length < 3) { setLista([]); return; }
+    setBuscando(true);
+    const { data, error } = await sb.rpc('buscar_inscripta', { p_texto: q });
+    setBuscando(false);
+    if (error) { setRes({ estado: 'falla', mensaje: error.message }); return; }
+    setLista(data || []);
+  }
+
+  useEffect(() => {
+    contar();
+    if (codigoInicial) {
+      acreditar(codigoInicial);
+      try { window.history.replaceState(null, '', window.location.pathname + '?p=puerta'); } catch (e) {}
+    }
+    const t = setInterval(contar, 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <>
+      <div className="numeros" style={{ gridTemplateColumns: '1fr' }}>
+        <div className="numero-caja"><b>{presentes == null ? '…' : presentes}</b><span>ingresaron</span></div>
+      </div>
+
+      {procesando && <div className="resultado r-rep"><p className="titulo">Acreditando…</p></div>}
+      {res && !procesando && <Resultado res={res} onSiguiente={() => setRes(null)} />}
+
+      <section className="tarjeta">
+        <h2>Escanear QR</h2>
+        {camara
+          ? <Escaner activo={!res && !procesando} onCodigo={acreditar} />
+          : <button style={{ marginTop: '.5rem' }} onClick={() => setCamara(true)}>Abrir cámara</button>}
+        {camara && <button className="secundario" onClick={() => setCamara(false)}>Cerrar cámara</button>}
+      </section>
+
+      <section className="tarjeta" style={{ marginTop: '1.25rem' }}>
+        <h2>Sin QR</h2>
+        <form onSubmit={buscar} noValidate>
+          <label htmlFor="bus-p">DNI, apellido o código</label>
+          <div className="buscador" style={{ display: 'flex', gap: '.5rem' }}>
+            <input id="bus-p" value={busca} onChange={(e) => setBusca(e.target.value)} autoComplete="off" autoCorrect="off" spellCheck="false" />
+            <button type="submit" className="chico" disabled={buscando} style={{ marginTop: 0 }}>{buscando ? '…' : 'Buscar'}</button>
+          </div>
+        </form>
+        <div style={{ marginTop: '.9rem' }}>
+          {lista && !lista.length && <p>No aparece. Revisá cómo se escribe, o probá con el DNI.</p>}
+          {lista && lista.map((r) => (
+            <div className="ficha" key={r.codigo}>
+              <div className="nom">{r.nombre} {r.apellido}</div>
+              <div className="det">DNI {r.dni}</div>
+              {r.numero_sorteo
+                ? <span className="etiqueta" style={{ marginLeft: 0 }}>Ya entró · N° {r.numero_sorteo}</span>
+                : <button className="dar" onClick={() => acreditar(r.codigo)}>Dar ingreso</button>}
+            </div>
+          ))}
+        </div>
+      </section>
+      <p className="sello">{VERSION}</p>
+    </>
+  );
+}
+
+function EntradaPublica({ codigo, onEquipo }) {
+  return (
+    <main>
+      <Cabecera />
+      <div className="raya" />
+      <section className="tarjeta" style={{ textAlign: 'center' }}>
+        <h2>Tu entrada</h2>
+        <p className="codigo-grande" style={{ fontSize: '1.8rem', fontWeight: 700, letterSpacing: '.2em', color: 'var(--oro)', margin: '.5rem 0' }}>{extraerCodigo(codigo)}</p>
+        <p style={{ margin: 0 }}>Mostrá tu QR en la puerta. Ahí te damos tu número para el sorteo.</p>
+      </section>
+      <p style={{ textAlign: 'center', marginTop: '2rem' }}>
+        <button className="chico secundario" onClick={onEquipo}>Soy del equipo de acreditación</button>
+      </p>
+      <p className="sello">{VERSION}</p>
+    </main>
+  );
+}
+
+// ================= SORTEO (solo administradora, para proyectar) =================
+function Sorteo() {
   const [rol, setRol] = useState(undefined);
+  const [resumen, setResumen] = useState(null);
+  const [historial, setHistorial] = useState([]);
+  const [mostrado, setMostrado] = useState(null);
+  const [ganadora, setGanadora] = useState(null);
+  const [girando, setGirando] = useState(false);
+  const [error, setError] = useState('');
+  const [controles, setControles] = useState(true);
+  const girandoRef = React.useRef(false);
+
+  async function cargar() {
+    const [r1, r2] = await Promise.all([sb.rpc('resumen_sorteo'), sb.rpc('listar_sorteo')]);
+    if (!r1.error) setResumen(r1.data);
+    if (!r2.error) setHistorial(r2.data || []);
+  }
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await sb.rpc('mi_rol');
+      const r = error ? null : data;
+      setRol(r);
+      if (r === 'admin') cargar();
+    })();
+  }, []);
+
+  async function sortear() {
+    if (girandoRef.current) return;
+    girandoRef.current = true;
+    setGirando(true); setGanadora(null); setError('');
+    const tope = Math.max(1, (resumen && resumen.max_numero) || 100);
+    const quieto = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const giro = quieto ? null : setInterval(() => setMostrado(1 + Math.floor(Math.random() * tope)), 70);
+    const espera = new Promise((ok) => setTimeout(ok, quieto ? 400 : 3200));
+    const [{ data, error }] = await Promise.all([sb.rpc('sortear'), espera]);
+    if (giro) clearInterval(giro);
+    if (error) { setMostrado(null); setError(error.message); }
+    else { setMostrado(data.numero); setGanadora(data); }
+    girandoRef.current = false;
+    setGirando(false);
+    cargar();
+  }
+
+  async function ausente() {
+    if (!ganadora || girandoRef.current) return;
+    if (!window.confirm('¿El número ' + ganadora.numero + ' no está? Queda anotado como ausente y se sortea otra.')) return;
+    await sb.rpc('marcar_ausente', { p_numero: ganadora.numero });
+    sortear();
+  }
+
+  function pantallaCompleta() {
+    const el = document.documentElement;
+    if (document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
+    else if (el.requestFullscreen) el.requestFullscreen();
+  }
+
+  useEffect(() => {
+    const tecla = (e) => {
+      if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
+      if (e.code === 'Space' || e.key === 'Enter') { e.preventDefault(); if (rol === 'admin') sortear(); }
+      if (e.key === 'h' || e.key === 'H') setControles((c) => !c);
+      if (e.key === 'f' || e.key === 'F') pantallaCompleta();
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [rol, resumen]);
+
+  if (rol === undefined) return <main><p>Cargando…</p></main>;
+  if (rol !== 'admin') return (
+    <main><Cabecera /><div className="raya" />
+      <section className="tarjeta"><p style={{ margin: 0 }}>El sorteo solo lo puede hacer la administradora.</p></section>
+    </main>
+  );
+
+  const inicialApellido = (a) => (a ? ' ' + String(a).trim().charAt(0).toUpperCase() + '.' : '');
+  const ganadas = historial.filter((h) => h.sorteo_estado === 'ganadora');
+  const ausentes = historial.filter((h) => h.sorteo_estado === 'ausente');
+
+  return (
+    <div className="sorteo">
+      <header className="cab">
+        <div className="volanta">Mujeres por Boca</div>
+        <h1><span className="a">Abrazo a</span><span className="boca">Boca</span></h1>
+      </header>
+
+      <div className="centro" aria-live="assertive">
+        <div className="rotulo">{girando ? 'Sorteando' : ganadora ? 'Número ganador' : 'Sorteo'}</div>
+        <div className={'bola' + (girando ? ' gira' : '')}>{mostrado == null ? '?' : mostrado}</div>
+        {ganadora && !girando && <p className="ganadora">{ganadora.nombre}{inicialApellido(ganadora.apellido)}</p>}
+        {error && <p className="error" role="alert" style={{ maxWidth: '32rem' }}>{error}</p>}
+      </div>
+
+      {controles && (
+        <footer>
+          <div className="controles">
+            <button className="grande" onClick={sortear} disabled={girando || (resumen && resumen.disponibles === 0)}>
+              {girando ? 'Sorteando…' : ganadora ? 'Sortear otro premio' : 'Sortear'}
+            </button>
+            {ganadora && !girando && <button className="secundario" onClick={ausente}>No está: sortear otra</button>}
+            <button className="secundario" onClick={pantallaCompleta}>Pantalla completa</button>
+            <button className="secundario" onClick={() => setControles(false)}>Ocultar botones</button>
+          </div>
+          {resumen && <div className="historial">Participan {resumen.disponibles} de {resumen.presentes} presentes</div>}
+          {(ganadas.length > 0 || ausentes.length > 0) && (
+            <div className="historial">
+              Ganadoras: {ganadas.map((h) => 'N° ' + h.numero_sorteo).join(', ') || 'ninguna todavía'}
+              {ausentes.length > 0 && <> · Ausentes: {ausentes.map((h, i) => <s key={i}>{'N° ' + h.numero_sorteo}</s>).reduce((a, b) => [a, ', ', b])}</>}
+            </div>
+          )}
+          <div className="historial" style={{ fontSize: '.8rem' }}>Teclado: espacio sortea · F pantalla completa · H muestra u oculta los botones</div>
+        </footer>
+      )}
+      {!controles && <button aria-label="Mostrar botones" onClick={() => setControles(true)} style={{ position: 'fixed', right: 8, bottom: 8, width: 28, height: 28, padding: 0, margin: 0, opacity: .15, borderRadius: 8 }} />}
+    </div>
+  );
+}
+
+function Tablero({ email, inicial, codigoInicial }) {
+  const [rol, setRol] = useState(undefined);
+  const [vista, setVista] = useState(inicial || 'inscripciones');
   const [lista, setLista] = useState(null);
   const [busca, setBusca] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -526,10 +910,31 @@ function Tablero({ email }) {
   );
 
   if (rol === 'acreditadora') return (
-    <main>{arriba}
-      <section className="tarjeta"><p style={{ margin: 0 }}>Tu acceso es para la acreditación en la puerta. Esa pantalla se habilita en el próximo paso.</p></section>
+    <main>{arriba}<Puerta codigoInicial={codigoInicial} /></main>
+  );
+
+  const pestanas = (
+    <div className="pestanas">
+      <button className={vista === 'inscripciones' ? '' : 'apagada'} onClick={() => setVista('inscripciones')}>Inscripciones</button>
+      <button className={vista === 'puerta' ? '' : 'apagada'} onClick={() => setVista('puerta')}>Puerta</button>
+      {rol === 'admin' && <button className={vista === 'sorteo' ? '' : 'apagada'} onClick={() => setVista('sorteo')}>Sorteo</button>}
+    </div>
+  );
+
+  if (vista === 'sorteo' && rol === 'admin') return (
+    <main>{arriba}{pestanas}
+      <section className="tarjeta">
+        <h2>Sorteo</h2>
+        <p style={{ marginTop: 0 }}>Abrí la pantalla del sorteo en la compu conectada al proyector o la pantalla grande, con tu sesión de administradora.</p>
+        <a className="boton" href="?p=sorteo" target="_blank" rel="noopener">Abrir pantalla del sorteo</a>
+        <p className="nota">Participan solo las que ingresaron por la puerta. Cada número sale una sola vez.</p>
+      </section>
       <p className="sello">{VERSION}</p>
     </main>
+  );
+
+  if (vista === 'puerta') return (
+    <main>{arriba}{pestanas}<Puerta codigoInicial={codigoInicial} /></main>
   );
 
   const total = lista ? lista.length : 0;
@@ -542,6 +947,7 @@ function Tablero({ email }) {
   return (
     <main>
       {arriba}
+      {pestanas}
       <div className="numeros">
         <div className="numero-caja"><b>{total}</b><span>inscriptas de {CUPO}</span></div>
         <div className="numero-caja"><b>{ingresaron}</b><span>ingresaron</span></div>
@@ -574,21 +980,31 @@ function Tablero({ email }) {
   );
 }
 
-function Panel() {
+function Panel({ inicial, codigoInicial, modo }) {
   const [sesion, setSesion] = useState(undefined);
+  const [quiereLogin, setQuiereLogin] = useState(false);
   useEffect(() => {
     sb.auth.getSession().then(({ data }) => setSesion(data.session));
     const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSesion(s));
     return () => sub.subscription.unsubscribe();
   }, []);
   if (sesion === undefined) return <main><p>Cargando…</p></main>;
-  if (!sesion) return <Login />;
-  return <Tablero email={String(sesion.user.email || '').toLowerCase()} />;
+  if (!sesion) {
+    if (codigoInicial && !quiereLogin) return <EntradaPublica codigo={codigoInicial} onEquipo={() => setQuiereLogin(true)} />;
+    return <Login />;
+  }
+  if (modo === 'sorteo') return <Sorteo />;
+  return <Tablero email={String(sesion.user.email || '').toLowerCase()} inicial={inicial} codigoInicial={codigoInicial} />;
 }
 
 function App() {
-  const p = new URLSearchParams(window.location.search).get('p');
+  const q = new URLSearchParams(window.location.search);
+  const p = q.get('p');
+  const id = q.get('id');
+  if (id) return <Panel inicial="puerta" codigoInicial={id} />;
   if (p === 'equipo') return <Panel />;
+  if (p === 'puerta') return <Panel inicial="puerta" />;
+  if (p === 'sorteo') return <Panel modo="sorteo" />;
   return <Inscripcion />;
 }
 
